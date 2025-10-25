@@ -20,7 +20,7 @@ router = APIRouter()
 def normalize_suggestion_data(suggestion: dict) -> dict:
     """
     Normalize suggestion data to match Pydantic model expectations.
-    Converts string fields to arrays where needed.
+    Converts string fields to arrays where needed and ensures proper data types.
     """
     # Fields that should be arrays
     array_fields = ['category', 'highlights', 'best_months', 'popular_activities', 'travel_tips']
@@ -46,6 +46,23 @@ def normalize_suggestion_data(suggestion: dict) -> dict:
     for field in array_fields:
         if field not in suggestion:
             suggestion[field] = []
+    
+    # CRITICAL FIX: Ensure duration_days is always an integer
+    if 'duration_days' in suggestion:
+        try:
+            # Round float to nearest integer
+            suggestion['duration_days'] = int(round(suggestion['duration_days']))
+        except (ValueError, TypeError):
+            # Default to 7 days if conversion fails
+            logger.warning(f"Invalid duration_days value: {suggestion.get('duration_days')}, defaulting to 7")
+            suggestion['duration_days'] = 7
+    
+    # Ensure rating is a float if present
+    if 'rating' in suggestion and suggestion['rating'] is not None:
+        try:
+            suggestion['rating'] = float(suggestion['rating'])
+        except (ValueError, TypeError):
+            suggestion['rating'] = None
     
     return suggestion
 
@@ -146,10 +163,13 @@ async def get_suggestions(
             try:
                 ai_suggestions = await ai_service.generate_suggestions(count=12)
                 
+                # Normalize all AI suggestions before inserting
                 for i, suggestion in enumerate(ai_suggestions):
+                    suggestion = normalize_suggestion_data(suggestion)
                     suggestion['created_at'] = datetime.utcnow()
                     suggestion['updated_at'] = datetime.utcnow()
                     suggestion['is_featured'] = i < 6
+                    ai_suggestions[i] = suggestion
                 
                 if ai_suggestions:
                     await db[settings.SUGGESTIONS_COLLECTION].insert_many(ai_suggestions)
@@ -173,7 +193,9 @@ async def get_suggestions(
                     count=min(effective_limit, 6)
                 )
                 
+                # Normalize all AI suggestions before inserting
                 for suggestion in ai_suggestions:
+                    suggestion = normalize_suggestion_data(suggestion)
                     suggestion['created_at'] = datetime.utcnow()
                     suggestion['updated_at'] = datetime.utcnow()
                     suggestion['is_featured'] = False
@@ -246,6 +268,9 @@ async def generate_ai_suggestions(
             logger.info(f"🤖 Generating AI suggestion for: {destination}")
             ai_suggestion = await ai_service.generate_single_suggestion(destination)
             
+            # Normalize the AI-generated suggestion
+            ai_suggestion = normalize_suggestion_data(ai_suggestion)
+            
             if save_to_db:
                 db = get_database()
                 ai_suggestion['created_at'] = datetime.utcnow()
@@ -258,7 +283,6 @@ async def generate_ai_suggestions(
             else:
                 ai_suggestion['_id'] = None
             
-            ai_suggestion = normalize_suggestion_data(ai_suggestion)
             return [SuggestedTrip(**ai_suggestion)]
         
         # Generate multiple suggestions with filters
@@ -269,22 +293,26 @@ async def generate_ai_suggestions(
             count=count
         )
         
+        # Normalize all AI-generated suggestions
+        normalized_suggestions = []
+        for suggestion in ai_suggestions:
+            suggestion = normalize_suggestion_data(suggestion)
+            normalized_suggestions.append(suggestion)
+        
         if save_to_db:
             db = get_database()
-            for suggestion in ai_suggestions:
+            for suggestion in normalized_suggestions:
                 suggestion['created_at'] = datetime.utcnow()
                 suggestion['updated_at'] = datetime.utcnow()
                 suggestion['is_featured'] = False
             
-            result = await db[settings.SUGGESTIONS_COLLECTION].insert_many(ai_suggestions)
+            result = await db[settings.SUGGESTIONS_COLLECTION].insert_many(normalized_suggestions)
             logger.info(f"💾 Saved {len(result.inserted_ids)} AI suggestions")
             
             for i, inserted_id in enumerate(result.inserted_ids):
-                ai_suggestions[i]['_id'] = str(inserted_id)
+                normalized_suggestions[i]['_id'] = str(inserted_id)
         
-        # Normalize all suggestions
-        normalized = [normalize_suggestion_data(s) for s in ai_suggestions]
-        result = [SuggestedTrip(**s) for s in normalized]
+        result = [SuggestedTrip(**s) for s in normalized_suggestions]
         
         logger.info(f"✅ Generated {len(result)} AI suggestions")
         return result
@@ -326,6 +354,7 @@ async def create_or_update_suggestion(
                 )
             
             update_data = request.model_dump()
+            update_data = normalize_suggestion_data(update_data)
             update_data['updated_at'] = datetime.utcnow()
             
             result = await db[settings.SUGGESTIONS_COLLECTION].update_one(
@@ -350,15 +379,18 @@ async def create_or_update_suggestion(
             return SuggestedTrip(**updated)
         
         # Create new suggestion
-        suggestion_data = SuggestedTripDB(
-            **request.model_dump(),
+        suggestion_data = request.model_dump()
+        suggestion_data = normalize_suggestion_data(suggestion_data)
+        
+        suggestion_db = SuggestedTripDB(
+            **suggestion_data,
             is_featured=False,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
         
         result = await db[settings.SUGGESTIONS_COLLECTION].insert_one(
-            suggestion_data.model_dump()
+            suggestion_db.model_dump()
         )
         
         created = await db[settings.SUGGESTIONS_COLLECTION].find_one(
@@ -471,6 +503,12 @@ async def migrate_database(
                             updates[field] = normalized[field]
                             needs_update = True
                 
+                # Also update duration_days if it was normalized
+                if 'duration_days' in normalized and 'duration_days' in suggestion:
+                    if normalized['duration_days'] != suggestion['duration_days']:
+                        updates['duration_days'] = normalized['duration_days']
+                        needs_update = True
+                
                 if needs_update:
                     await db[settings.SUGGESTIONS_COLLECTION].update_one(
                         {"_id": suggestion['_id']},
@@ -493,10 +531,13 @@ async def migrate_database(
             
             ai_suggestions = await ai_service.generate_suggestions(count=10)
             
+            # Normalize all AI suggestions before inserting
             for i, suggestion in enumerate(ai_suggestions):
+                suggestion = normalize_suggestion_data(suggestion)
                 suggestion['created_at'] = datetime.utcnow()
                 suggestion['updated_at'] = datetime.utcnow()
                 suggestion['is_featured'] = i < 3
+                ai_suggestions[i] = suggestion
             
             result = await db[settings.SUGGESTIONS_COLLECTION].insert_many(ai_suggestions)
             
