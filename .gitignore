@@ -1,0 +1,111 @@
+# =========================================================
+# 🌍 AI Travel Guide – Personalized Tour Planner
+# Combined .gitignore for Next.js (Frontend) + FastAPI (Backend)
+# =========================================================
+
+# -----------------------------
+# 1️⃣ Node / Next.js (Frontend)
+# -----------------------------
+# dependencies
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+
+# build output
+frontend/dist/
+frontend/.turbo/
+frontend/.cache/
+
+# environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.production.local
+frontend/.env.test.local
+
+# misc
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/package-lock.json
+frontend/.DS_Store
+
+# -----------------------------
+# 2️⃣ Python / FastAPI (Backend)
+# -----------------------------
+# byte-compiled / optimized / DLL files
+backend/__pycache__/
+backend/*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# virtual environments
+backend/venv/
+backend/.venv/
+.env
+venv/
+.env/
+
+# FastAPI build, test, cache files
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.ruff_cache/
+
+# environment variables
+backend/.env
+backend/.env.local
+
+# logs
+backend/*.log
+backend/logs/
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# 3️⃣ Common Project Files
+# -----------------------------
+# backups / misc
+*.bak
+*.tmp
+*.log
+*.sqlite3
+
+# compiled code
+*.pyc
+*.pyo
+*.pyd
+
+# build output
+dist/
+build/
+__pycache__/
+
+# coverage / testing
+coverage/
+.cache/
+.pytest_cache/
+*.cover
+*.log
+
+# local environment
+.env
+.env.local
+
+# editors
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
