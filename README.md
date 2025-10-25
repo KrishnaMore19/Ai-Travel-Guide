@@ -36,17 +36,17 @@ MongoDB (v5.0 or higher)
 Git
 
 Clone the Repository
-bashgit clone <repository-url>
+git clone https://github.com/KrishnaMore19/Ai-Travel-Guide
 cd ai-travel-guide
 Backend Setup
 
 Navigate to the backend directory:
 
-bashcd backend
+cd backend
 
 Create a virtual environment:
 
-bashpython -m venv venv
+python -m venv venv
 
 # On Windows
 venv\Scripts\activate
@@ -56,7 +56,7 @@ source venv/bin/activate
 
 Install dependencies:
 
-bashpip install -r requirements.txt
+pip install -r requirements.txt
 
 Create environment file:
 Create a .env file in the backend directory with the following configuration:
@@ -88,11 +88,11 @@ Frontend Setup
 
 Navigate to the frontend directory (open a new terminal):
 
-bashcd frontend
+cd frontend
 
 Install dependencies:
 
-bashnpm install
+npm install
 
 Create environment file:
 Create a .env.local file in the frontend directory:
@@ -106,7 +106,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 Start the development server:
 
-bashnpm run dev
+npm run dev
 ```
 
 The application will be available at `http://localhost:3000`
